@@ -20,6 +20,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -66,17 +67,37 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-
-    @PostMapping("/google")
-    public ResponseEntity<GoogleAuthenticationResponse> googleLogin(@RequestBody @Valid GoogleLoginRequestDTO data) {
+    @PostMapping("/google/signup")
+    public ResponseEntity<?> googleSignUp(@RequestBody @Valid GoogleLoginRequestDTO data) {
         try {
-            GoogleAuthenticationResponse response = googleAuthenticationService.loginWithGoogle(data.idToken());
-            return ResponseEntity.ok(response);
-        } catch (GeneralSecurityException | IOException | IllegalArgumentException e) {
-            logger.error("Erro na autenticação com Google: {}", e.getMessage());
-            logger.error("Stack trace:", e);
+            GoogleAuthenticationResponse response = googleAuthenticationService.cadastrarComGoogle(data.idToken());
+            return ResponseEntity.status(HttpStatus.CREATED).body(response); // Retorna 201 Created
 
+        } catch (ResponseStatusException e) {
+            // Captura o erro 409 de conta existente e manda a mensagem para o Front
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+
+        } catch (GeneralSecurityException | IOException e) {
+            logger.error("Erro na autenticação com Google: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+    }
+
+    @PostMapping("/google/login")
+    public ResponseEntity<?> googleLogin(@RequestBody @Valid GoogleLoginRequestDTO data) {
+        try {
+            GoogleAuthenticationResponse response = googleAuthenticationService.loginComGoogle(data.idToken());
+            return ResponseEntity.ok(response); // Retorna 200 OK
+
+        } catch (ResponseStatusException e) {
+            // Captura o erro 404 de conta não existente
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+
+        } catch (GeneralSecurityException | IOException e) {
+            logger.error("Erro na autenticação com Google: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+
     }
 }

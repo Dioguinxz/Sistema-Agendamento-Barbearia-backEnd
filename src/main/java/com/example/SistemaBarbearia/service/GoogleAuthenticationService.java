@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -33,42 +35,54 @@ public class GoogleAuthenticationService {
     @Value("${google.client-id}")
     private String googleClientId;
 
-    public GoogleAuthenticationResponse loginWithGoogle(String idTokenString) throws GeneralSecurityException, IOException {
-        //Prepara o verificador de tokens do Google
+    // Método centralizado para validar o token
+    private GoogleIdToken.Payload validarToken(String idTokenString) throws GeneralSecurityException, IOException {
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
 
-        //Verifica o token
         GoogleIdToken idToken = verifier.verify(idTokenString);
         if (idToken == null) {
-            throw new IllegalArgumentException("Token do Google inválido.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token do Google inválido.");
+        }
+        return idToken.getPayload();
+    }
+
+    // Rota 1: Exclusiva para CADASTRO
+    public GoogleAuthenticationResponse cadastrarComGoogle(String idTokenString) throws GeneralSecurityException, IOException {
+        GoogleIdToken.Payload payload = validarToken(idTokenString);
+        String email = payload.getEmail();
+
+        // VALIDAÇÃO: Se o e-mail já existe, trava a operação e devolve 409 Conflict
+        if (usuarioRepository.findByEmail(email).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta já existente. Por favor, faça login.");
         }
 
-        // Extrai as informações do usuário
-        GoogleIdToken.Payload payload = idToken.getPayload();
+        logger.info("Criando novo usuário via Google Login para o e-mail: {}", email);
+        Usuario novoUsuario = Usuario.builder()
+                .email(email)
+                .nome((String) payload.get("name"))
+                .telefone((String) payload.get("telefone"))
+                .tipo(TipoUsuario.CLIENTE)
+                .ativo(true)
+                .build();
+
+        Usuario usuarioSalvo = usuarioRepository.save(novoUsuario);
+        emailService.enviarEmailBoasVindas(usuarioSalvo);
+
+        var jwtToken = tokenService.gerarToken(usuarioSalvo);
+        return new GoogleAuthenticationResponse(jwtToken);
+    }
+
+    // Rota 2: Exclusiva para LOGIN
+    public GoogleAuthenticationResponse loginComGoogle(String idTokenString) throws GeneralSecurityException, IOException {
+        GoogleIdToken.Payload payload = validarToken(idTokenString);
         String email = payload.getEmail();
-        String nome = (String) payload.get("name");
-        String telefone = (String) payload.get("telefone");
 
-        // Lógica "Upsert": Encontra ou cria o usuário
+        // VALIDAÇÃO: Se o e-mail NÃO existe, avisa que a conta não foi encontrada (404 Not Found)
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    logger.info("Criando novo usuário via Google Login para o e-mail: {}", email);
-                    Usuario novoUsuario = Usuario.builder()
-                            .email(email)
-                            .nome(nome)
-                            .telefone(telefone)
-                            .tipo(TipoUsuario.CLIENTE)
-                            .ativo(true)
-                            .build();
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada. Cadastre-se primeiro."));
 
-                    Usuario usuarioSalvo = usuarioRepository.save(novoUsuario);
-                    emailService.enviarEmailBoasVindas(usuarioSalvo);
-                    return usuarioSalvo;
-                });
-
-        //Gera e retorna o token JWT da SUA aplicação
         var jwtToken = tokenService.gerarToken(usuario);
         return new GoogleAuthenticationResponse(jwtToken);
     }
