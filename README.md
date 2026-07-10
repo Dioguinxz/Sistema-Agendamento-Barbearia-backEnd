@@ -10,6 +10,7 @@ API RESTful em desenvolvimento com **Java e Spring Boot** para gerenciar agendam
 * Cadastro e Login (com JWT)
 * Visualizar horários disponíveis
 * Agendar, editar e cancelar seus próprios horários
+* Editar informações do seu perfil
 
 ### Barbeiro / Admin
 * Login com acesso admin
