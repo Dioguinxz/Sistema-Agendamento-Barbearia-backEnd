@@ -3,6 +3,7 @@ package com.example.SistemaBarbearia.controller;
 import com.example.SistemaBarbearia.dto.AgendamentoRequestDTO;
 import com.example.SistemaBarbearia.dto.AgendamentoResponseDTO;
 import com.example.SistemaBarbearia.dto.AgendamentoUpdateDTO;
+import com.example.SistemaBarbearia.dto.HorarioOcupadoDTO;
 import com.example.SistemaBarbearia.entity.Usuario;
 import com.example.SistemaBarbearia.service.AgendamentoService;
 import jakarta.validation.Valid;
@@ -152,5 +153,14 @@ public class AgendamentoController {
 
         agendamentoService.marcarComoConcluido(id, barbeiroLogado);
         return ResponseEntity.noContent().build();
+    }
+
+
+    @GetMapping("/horarios-ocupados")
+    @PreAuthorize("hasAuthority('CLIENTE')")
+    public ResponseEntity<List<HorarioOcupadoDTO>> horariosOcupados(
+            @RequestParam String barbeiroId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
+        return ResponseEntity.ok(agendamentoService.listarHorariosOcupados(barbeiroId, data));
     }
 }

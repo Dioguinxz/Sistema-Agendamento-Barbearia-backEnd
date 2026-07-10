@@ -3,6 +3,7 @@ package com.example.SistemaBarbearia.service;
 import com.example.SistemaBarbearia.dto.AgendamentoRequestDTO;
 import com.example.SistemaBarbearia.dto.AgendamentoResponseDTO;
 import com.example.SistemaBarbearia.dto.AgendamentoUpdateDTO;
+import com.example.SistemaBarbearia.dto.HorarioOcupadoDTO;
 import com.example.SistemaBarbearia.entity.*;
 import com.example.SistemaBarbearia.exceptions.AgendamentoException;
 import com.example.SistemaBarbearia.exceptions.CancelamentoForaDoPrazoException;
@@ -318,6 +319,16 @@ public class AgendamentoService {
 
         agendamento.setStatus(StatusAgendamento.CONCLUIDO);
         agendamentoRepository.save(agendamento);
+    }
+
+    
+    public List<HorarioOcupadoDTO> listarHorariosOcupados(String barbeiroId, LocalDate data) {
+        LocalDateTime inicioDoDia = data.atStartOfDay();
+        LocalDateTime fimDoDia = data.atTime(LocalTime.MAX);
+        return agendamentoRepository.findByBarbeiroIdAndHorarioBetween(barbeiroId, inicioDoDia, fimDoDia).stream()
+                .filter(a -> a.getStatus() == StatusAgendamento.AGENDADO)
+                .map(a -> new HorarioOcupadoDTO(a.getHorario(), a.getTipoServico()))
+                .collect(Collectors.toList());
     }
 
 }

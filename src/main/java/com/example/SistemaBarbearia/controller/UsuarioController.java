@@ -123,6 +123,18 @@ public class UsuarioController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasAuthority('CLIENTE')")
+    public ResponseEntity<UsuarioResponseDTO> buscarMeuPerfil(@AuthenticationPrincipal Usuario usuarioLogado) {
+        return ResponseEntity.ok(new UsuarioResponseDTO(usuarioLogado));
+    }
+
+    @GetMapping("/barbeiros")
+    @PreAuthorize("hasAuthority('CLIENTE')")
+    public ResponseEntity<List<UsuarioResponseDTO>> listarBarbeiros() {
+        return ResponseEntity.ok(usuarioService.listarBarbeiros());
+    }
+
 
 
 }

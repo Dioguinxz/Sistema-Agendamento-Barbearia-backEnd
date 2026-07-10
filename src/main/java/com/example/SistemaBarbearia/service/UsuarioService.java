@@ -2,6 +2,7 @@ package com.example.SistemaBarbearia.service;
 
 import com.example.SistemaBarbearia.dto.UsuarioResponseDTO;
 import com.example.SistemaBarbearia.dto.UsuarioUpdateDTO;
+import com.example.SistemaBarbearia.entity.TipoUsuario;
 import com.example.SistemaBarbearia.entity.Usuario;
 import com.example.SistemaBarbearia.exceptions.*;
 import lombok.AllArgsConstructor;
@@ -48,6 +49,11 @@ public class UsuarioService {
                 .collect(Collectors.toList());
     }
 
+    public List<UsuarioResponseDTO> listarBarbeiros() {
+        return usuarioRepository.findAllByTipoAndAtivoTrue(TipoUsuario.BARBEIRO).stream()
+                .map(UsuarioResponseDTO::new)
+                .collect(Collectors.toList());
+    }
 
     public UsuarioResponseDTO buscarUsuarioPorEmail(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
